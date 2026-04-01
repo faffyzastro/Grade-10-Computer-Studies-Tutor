@@ -1,0 +1,7 @@
+{
+    "total_chunks": 25,
+    "file_source": "Computer-Studies-new-2026-curriculum-design-for-grade-10-by-KICD.md",
+    "collection": "cs_grade10_kicd",
+    "model": "all-MiniLM-L6-v2",
+    "engine": "local-sentence-transformers"
+}
