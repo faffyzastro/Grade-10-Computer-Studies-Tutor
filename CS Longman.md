@@ -306,3 +306,400 @@ The data processing cycle follows a specific sequence of events to transform dat
 * **Batch Processing:** Processing that takes place in one run without human intervention.
 
 ---
+
+Gemini said
+Based on the images provided, here is the structured Markdown for Chapter 4: Computer Software. This is formatted to integrate seamlessly with your existing CS Longman.md file and is optimized for your RAG's chunking logic.
+
+CHAPTER 4: COMPUTER SOFTWARE
+Strand: 1.0 Foundation
+Sub-strand: 1.5 & 1.6 Computer Software and Operating Systems
+4.1 Introduction to Software
+Software refers to a set of instructions (programs) that tell the computer hardware what to do. Hardware cannot perform any task without software.
+
+4.2 Classification of Software
+Computer software is broadly classified into two main categories:
+
+System Software
+
+Application Software
+
+4.3 System Software
+System software consists of programs that control and manage the basic operations of a computer. It acts as an interface between the hardware and the application software.
+
+4.3.1 Operating Systems (OS)
+The Operating System is the most important type of system software. It manages the computer's memory, processes, and all of its hardware and software.
+
+Examples: Microsoft Windows, Linux, macOS, Android, and iOS.
+
+Functions of an OS:
+
+Processor Management: Scheduling tasks for the CPU.
+
+Memory Management: Allocating RAM to different running programs.
+
+File Management: Organizing data into folders and directories.
+
+Device Management: Managing input and output devices via drivers.
+
+User Interface: Providing a way for the user to interact with the computer.
+
+4.3.2 Utility Programs
+Utilities are service programs designed to help analyze, configure, optimize, or maintain a computer.
+
+Examples: Antivirus software, backup tools, disk deframentalizers, and file compression tools (like WinZip).
+
+4.3.3 Device Drivers
+A device driver is a small program that tells the operating system how to communicate with a specific hardware device (e.g., a printer driver or a graphics card driver).
+
+4.4 Application Software
+Application software consists of programs designed to perform specific tasks for the user.
+
+4.4.1 General-Purpose (Off-the-Shelf) Software
+Ready-made programs developed by software companies for a wide range of users.
+
+Word Processors: For creating text documents (e.g., MS Word, Google Docs).
+
+Spreadsheets: For calculations and data analysis (e.g., MS Excel).
+
+Database Management Systems (DBMS): For storing and retrieving large amounts of data (e.g., MS Access).
+
+Presentation Software: For creating slide shows (e.g., MS PowerPoint).
+
+4.4.2 Specific-Purpose (Bespoke/Custom-made) Software
+Software developed to meet the unique requirements of a particular individual or organization (e.g., a school management system developed specifically for a certain school).
+
+4.5 Software Acquisition and Licensing
+Proprietary Software: Software that is owned by an individual or a company. Users must buy a license to use it and cannot modify the source code (e.g., Windows).
+
+Open-Source Software: Software whose source code is made available to the public for anyone to use, modify, and distribute (e.g., Linux, VLC Media Player).
+
+Shareware: Software provided for free on a trial basis.
+
+Freeware: Software that is available for use at no cost.
+
+4.6 User Interfaces
+The user interface (UI) is the part of the operating system that allows a person to communicate with the computer.
+
+Command Line Interface (CLI): The user types text commands to perform tasks (e.g., MS-DOS). It is fast but difficult for beginners to learn.
+
+Graphical User Interface (GUI): Uses windows, icons, menus, and pointers (WIMP) to interact with the user. It is user-friendly and easy to navigate.
+
+CHAPTER 5: INTRODUCTION TO PROGRAMMING (PASCAL)
+Strand: 3.0 Software Development
+Sub-strand: 3.1 & 3.3 Programming Concepts and Language Syntax
+5.1 Introduction to Pascal
+Pascal is a high-level, structured programming language named after the mathematician Blaise Pascal. It is designed to teach students good programming habits by enforcing a strict logical structure.
+
+5.2 Structure of a Pascal Program
+A standard Pascal program is divided into three main parts:
+
+Program Heading: Starts with the keyword program followed by the name of the program.
+
+Declaration Part: Where variables, constants, and data types are defined before they are used.
+
+Statement Part (Main Body): The actual instructions, enclosed between begin and end..
+
+Example of a Simple Program:
+Delphi
+program WelcomeMessage;
+begin
+  writeln('Welcome to Grade 10 Computer Science');
+end.
+5.3 Data Types in Pascal
+Pascal requires every variable to have a defined data type. Common types include:
+
+Integer: Whole numbers (e.g., 10, -5, 100).
+
+Real: Numbers with decimal points (e.g., 3.14, 0.5).
+
+Char: A single character (e.g., 'A', '$').
+
+String: A sequence of characters (e.g., 'Hello Kenya').
+
+Boolean: Logical values, either True or False.
+
+5.4 Variables and Constants
+Variables (var): Memory locations whose values can change during program execution.
+
+Syntax: var variable_name : data_type;
+
+Constants (const): Values that remain fixed throughout the program.
+
+Syntax: const PI = 3.142;
+
+5.5 Basic Pascal Statements
+Assignment Statement: Used to assign a value to a variable using the := operator.
+
+Example: Age := 16;
+
+Input Statements:
+
+read(): Reads data and stays on the same line.
+
+readln(): Reads data and moves the cursor to the next line.
+
+Output Statements:
+
+write(): Displays output on the screen.
+
+writeln(): Displays output and moves to a new line.
+
+5.6 Operators in Pascal
+Arithmetic: + (Addition), - (Subtraction), * (Multiplication), / (Real Division), div (Integer Division), mod (Remainder).
+
+Relational: = (Equal to), <> (Not equal to), < (Less than), > (Greater than), <= (Less than or equal to), >= (Greater than or equal to).
+
+Logical: and, or, not.
+
+5.7 Programming Best Practices
+Indentation: Making code readable by offsetting blocks of code.
+
+Comments: Using (* comment *) or { comment } to explain what the code does.
+
+Semicolons: Used as statement separators. Every statement (except those before an else or the final end.) must end with a ;.
+
+CHAPTER 6: PROGRAM DEVELOPMENT AND ALGORITHMS
+Strand: 3.0 Software Development
+Sub-strand: 3.2 Program Development
+6.1 Introduction to Program Development
+Developing a computer program is a systematic process. It is not just about writing code; it involves a series of steps to ensure the final software is accurate, efficient, and meets user needs.
+
+6.2 The Program Development Life Cycle (PDLC)
+The PDLC consists of several stages:
+
+Problem Recognition: Identifying the need for a software solution.
+
+Problem Definition: Clearly stating the requirements and constraints of the problem.
+
+Program Design: Planning the logic of the program using algorithms.
+
+Program Coding: Translating the design into a programming language (like Pascal or Python).
+
+Testing and Debugging: Finding and fixing errors (bugs) in the code.
+
+Implementation: Installing and starting to use the software.
+
+Maintenance and Review: Updating the program to fix new issues or add features.
+
+
+Shutterstock
+6.3 Algorithms
+An algorithm is a set of step-by-step instructions used to solve a specific problem.
+
+Properties of a good algorithm: It must be clear, finite (have an end), and produce a result.
+
+6.3.1 Pseudocode
+Pseudocode is a way of writing an algorithm using English-like statements that resemble programming code but without the strict syntax.
+
+Keywords: START, INPUT, COMPUTE, IF...THEN...ELSE, OUTPUT, STOP.
+
+6.3.2 Flowcharts
+A flowchart is a graphical representation of an algorithm using standard symbols.
+
+Oval (Terminal): Start/End.
+
+Parallelogram: Input/Output.
+
+Rectangle: Processing (Calculations).
+
+Diamond: Decision (Yes/No questions).
+
+Arrows: Direction of flow.
+
+6.4 Program Control Structures
+Control structures determine the order in which instructions are executed.
+
+Sequence: Instructions are executed one after the other in a straight line.
+
+Selection (Decision): Choosing between different paths based on a condition (e.g., IF score > 50 THEN "Pass").
+
+Iteration (Looping): Repeating a set of instructions multiple times until a condition is met (e.g., WHILE, FOR, REPEAT...UNTIL).
+
+6.5 Testing and Debugging
+Syntax Errors: Errors caused by breaking the rules of the language (e.g., a missing semicolon).
+
+Logical Errors: The program runs but gives the wrong answer because the math or logic is incorrect.
+
+Runtime Errors: Errors that occur while the program is running (e.g., trying to divide by zero).
+
+Dry Running: Manually tracing the logic of an algorithm on paper using sample data to check for errors before coding.
+
+CHAPTER 7: COMPUTER SETUP AND SAFETY
+Strand: 1.0 Foundation
+Sub-strand: 1.7 Computer Setup and Safety
+7.1 Introduction
+Setting up a computer correctly is essential for the longevity of the hardware and the health of the user. This involves proper cable management, environmental control, and ergonomic practices.
+
+7.2 Connecting Computer Peripherals
+Peripherals are external devices connected to the system unit. They connect via specific ports:
+
+USB (Universal Serial Bus): The most common port for keyboards, mice, and printers.
+
+HDMI / VGA: Used for connecting monitors and projectors.
+
+Ethernet (RJ45): Used for wired network connections.
+
+Audio Jacks: For speakers and microphones.
+
+The Powering Sequence:
+
+Connect all peripherals to the system unit.
+
+Connect the power cables to the wall socket.
+
+Switch on the peripheral devices (monitor, printer).
+
+Finally, press the power button on the system unit.
+
+7.3 Safety Precautions
+Safety is divided into two categories: Protecting the equipment and protecting the user.
+
+7.3.1 Protecting the Equipment (Hardware Safety)
+Stable Power: Use a UPS (Uninterruptible Power Supply) or surge protector to prevent damage from power fluctuations.
+
+Ventilation: Ensure the system unit has enough space for airflow to prevent overheating.
+
+Environment: Keep the room free from dust, moisture, and strong magnetic fields.
+
+Cable Management: Use cable ties to organize wires and prevent tripping hazards.
+
+7.3.2 Protecting the User (Ergonomics)
+Ergonomics is the science of designing the workplace to fit the user's needs to prevent injury.
+
+Posture: Sit with your back straight and feet flat on the floor.
+
+Eye Level: The top of the monitor should be at or slightly below eye level to prevent neck strain.
+
+Lighting: Ensure adequate lighting to avoid eye fatigue and glare on the screen.
+
+Breaks: Follow the 20-20-20 rule: Every 20 minutes, look at something 20 feet away for 20 seconds.
+
+
+7.4 Common Computer Problems and Troubleshooting
+Computer fails to start: Check power cables and wall sockets.
+
+Keyboard/Mouse not responding: Check if the USB cables are firmly plugged in.
+
+No display on monitor: Check the VGA/HDMI cable and ensure the monitor is powered on.
+
+Slow performance: Often caused by too many open applications or lack of disk space.
+
+7.5 Chapter Summary & Key Terms
+Booting: The process of starting or restarting a computer.
+
+Cold Boot: Starting a computer that was completely turned off.
+
+Warm Boot: Restarting a computer that is already on (e.g., using 'Restart').
+
+Post-Implementation Review: Checking the system after setup to ensure everything works as intended.
+
+CHAPTER 8: DATA COMMUNICATION AND COMPUTER NETWORKS
+Strand: 2.0 Computer Networking
+Sub-strand: 2.1 & 2.2 Introduction to Data Communication
+8.1 Introduction to Data Communication
+Data communication is the process of exchanging data between two nodes (computers or devices) via some form of transmission medium, such as a wire or a wireless signal.
+
+8.2 Components of Data Communication
+For communication to occur, five basic components must be present:
+
+Message: The information to be communicated (text, numbers, pictures, audio, video).
+
+Sender: The device that sends the data.
+
+Receiver: The device that receives the data.
+
+Transmission Medium: The physical path (cables or waves) through which the message travels.
+
+Protocols: A set of rules that govern the data communication.
+
+8.3 Types of Data Transmission (Directional)
+Simplex: Data travels in one direction only (e.g., Radio or Television broadcasting).
+
+Half-Duplex: Data travels in both directions, but only one direction at a time (e.g., Walkie-talkies).
+
+Full-Duplex: Data travels in both directions simultaneously (e.g., Mobile phone conversations).
+
+8.4 Computer Networks
+A computer network is a collection of computers and devices connected together to share resources (like printers and internet) and information.
+
+8.4.1 Classification of Networks by Size
+Local Area Network (LAN): Connects devices within a small geographical area like a school, office, or home.
+
+Metropolitan Area Network (MAN): Connects devices across a city or a large campus.
+
+Wide Area Network (WAN): Connects devices over long distances, such as countries or continents (e.g., the Internet).
+
+8.4.2 Classification by Architecture
+Client-Server Network: A powerful central computer (Server) provides resources and services to other computers (Clients).
+
+Peer-to-Peer (P2P) Network: Every computer has equal status and can share resources directly with others without a central server.
+
+8.5 Transmission Media
+Data travels through either bounded or unbounded media:
+
+Bounded (Wired) Media:
+
+Twisted Pair Cable: Common for LANs (Ethernet).
+
+Coaxial Cable: Used for cable TV and older networks.
+
+Fiber Optic Cable: Uses light pulses to transmit data at extremely high speeds over long distances.
+
+Unbounded (Wireless) Media:
+
+Radio Waves: Used for Wi-Fi and Bluetooth.
+
+Microwaves: Used for satellite and long-distance terrestrial links.
+
+Infrared: Used for short-range communication like TV remotes.
+
+8.6 Network Topologies
+Topology refers to the physical or logical layout of a network.
+
+Star Topology: All devices connect to a central hub or switch.
+
+Bus Topology: All devices share a single backbone cable.
+
+Ring Topology: Each device is connected to two others, forming a circle.
+
+Mesh Topology: Every device is connected to every other device (highly reliable).
+
+CHAPTER 11: EMERGING TECHNOLOGIES IN ICT
+Strand: 4.0 ICT and Society
+Sub-strand: 4.3 Emerging Technologies
+11.1 Introduction
+Emerging technologies are technical innovations which represent progressive developments within a field for competitive advantage. They are currently developing or will be available within the next few years.
+
+11.2 Artificial Intelligence (AI)
+AI is the simulation of human intelligence processes by machines, especially computer systems.
+
+Machine Learning: A subset of AI that allows software to become more accurate in predicting outcomes without being explicitly programmed.
+
+Natural Language Processing (NLP): Enabling computers to understand, interpret, and generate human language.
+
+Robotics: Programmable machines capable of carrying out a series of actions autonomously or semi-autonomously.
+
+
+Shutterstock
+11.3 Internet of Things (IoT)
+IoT refers to the network of physical objects ("things") embedded with sensors, software, and other technologies for the purpose of connecting and exchanging data with other devices over the internet.
+
+Examples: Smart homes (smart bulbs, thermostats), wearable fitness trackers, and industrial sensors in agriculture.
+
+11.4 Cloud Computing & Big Data
+Cloud Computing: The on-demand delivery of IT resources (servers, storage, databases) over the internet with pay-as-you-go pricing.
+
+Big Data: Extremely large data sets that may be analyzed computationally to reveal patterns, trends, and associations, especially relating to human behavior and interactions.
+
+11.5 Blockchain Technology
+A decentralized, distributed digital ledger that records transactions across many computers so that the record cannot be altered retroactively. It is the underlying technology for cryptocurrencies.
+
+11.6 Virtual and Augmented Reality
+Virtual Reality (VR): A simulated experience that can be similar to or completely different from the real world (using headsets).
+
+Augmented Reality (AR): An interactive experience of a real-world environment where the objects that reside in the real world are enhanced by computer-generated perceptual information (e.g., Pokémon GO or specialized medical overlays).
+
+11.7 Impact of Emerging Technologies
+Positive: Improved healthcare diagnostics, personalized learning, and increased industrial productivity.
+
+Negative: Privacy concerns, potential job displacement due to automation, and ethical dilemmas regarding AI decision-making.
