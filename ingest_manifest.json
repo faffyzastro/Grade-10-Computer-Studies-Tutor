@@ -1,6 +1,6 @@
 {
     "total_chunks": 52,
-    "file_source": "CS Longman.md",
+    "file_source": "CSLongman.md",
     "collection": "cs_grade10_kicd",
     "model": "all-MiniLM-L6-v2",
     "engine": "local-sentence-transformers"

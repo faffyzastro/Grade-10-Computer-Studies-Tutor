@@ -83,7 +83,7 @@ def ingest_markdown(file_path: str):
         with open(file_path, "r", encoding="utf-8") as f:
             full_text = f.read()
     except FileNotFoundError:
-        print(f"❌ ERROR: File '{file_path}' not found.")
+        print(f"ERROR: File '{file_path}' not found.")
         return
     print(f"       Loaded {len(full_text):,} characters.")
 

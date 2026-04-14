@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional
+from fastapi.responses import FileResponse
 import asyncio
 import json
 # Updated import: Only importing 'ask' from pipeline.py
@@ -38,16 +39,13 @@ class QueryResponse(BaseModel):
     sources: list[str]
 
 @app.get("/")
-def root():
-    return {
-        "status": "ok",
-        "service": "Grade 10 CS RAG Pipeline",
-        "endpoints": ["/ask", "/health", "/docs"],
-    }
+async def read_index():
+    return FileResponse('index.html')
 
 @app.get("/health")
 def health():
     return {"status": "healthy"}
+
 
 @app.post("/ask", response_model=QueryResponse)
 def ask_question(req: QueryRequest):
