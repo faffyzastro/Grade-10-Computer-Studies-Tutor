@@ -10,14 +10,20 @@ load_dotenv()
 
 # --- CONFIGURATION ---
 CHROMA_PATH = "./chroma_db"
-COLLECTION_NAME = "cs_grade10_kicd"
 LOCAL_EMBED_MODEL = "all-MiniLM-L6-v2"
 
-# --- THE 4 MODES (Prompt Templates) ---
+# Map incoming subject keys to their respective collection names
+COLLECTION_MAP = {
+    "cs": "cs_grade10_kicd",
+    "chem": "chem_grade10_kicd",
+    "bio": "bio_grade10_kicd"
+}
+
+# --- THE 4 MODES (Updated to be Subject-Agnostic) ---
 TEMPLATES = {
     "tutor": """
-    You are an expert Grade 10 Computer Studies Tutor in Kenya. 
-    Explain concepts simply using the context provided. Use bullet points for clarity.
+    You are an expert Grade 10 Tutor in Kenya specializing in {subject_name}. 
+    Explain concepts simply using the curriculum context provided. Use bullet points for clarity.
     End your response with ONE follow-up question to help the student think deeper.
 
     CONTEXT: {context}
@@ -25,11 +31,11 @@ TEMPLATES = {
     """,
 
     "quiz": """
-    You are a Quiz Generator for the KICD Curriculum. 
+    You are a Quiz Generator for the Grade 10 {subject_name} KICD Curriculum. 
     Based on the context, create:
     1. Three Multiple Choice Questions (MCQs)
     2. Two Short Answer Questions
-    3. One Practical Challenge
+    3. One Practical Challenge/Experiment
     Provide the Answer Key at the very end.
 
     CONTEXT: {context}
@@ -37,10 +43,10 @@ TEMPLATES = {
     """,
 
     "lesson": """
-    You are a Professional Lesson Planner. 
-    Create a 40-minute lesson plan based on the context.
+    You are a Professional {subject_name} Lesson Planner. 
+    Create a 40-minute lesson plan based on the curriculum design context.
     Use this structure:
-    - Objectives (based on Bloom's Taxonomy)
+    - Objectives (based on Bloom's Taxonomy & Learning Outcomes)
     - Introduction (5 mins)
     - Content Delivery & Guided Practice (20 mins)
     - Independent Activity (10 mins)
@@ -51,10 +57,10 @@ TEMPLATES = {
     """,
 
     "teacher": """
-    You are a Teacher's Assistant. 
+    You are a Teacher's Assistant for Grade 10 {subject_name}. 
     Provide the following for the requested topic:
-    1. A real-world Kenyan analogy (e.g., using M-Pesa, matatus, or local markets).
-    2. Common student misconceptions to watch out for.
+    1. A real-world Kenyan analogy (e.g., using local farming, M-Pesa, household items, or local markets).
+    2. Common student misconceptions to watch out for in this topic.
     3. Key 'Board Notes' (The most important summary for students to copy).
 
     CONTEXT: {context}
@@ -63,40 +69,48 @@ TEMPLATES = {
 }
 
 
-def ask(user_query, manual_mode="auto"):
+def ask(user_query, manual_mode="auto", subject="cs"):
     """
-    The main RAG pipeline function called by server.py
+    The main RAG pipeline function updated for Multi-Subject support.
     """
-    # 1. Connect to Local Vector DB
+    # 1. Resolve Collection Name
+    collection_name = COLLECTION_MAP.get(subject, "cs_grade10_kicd")
+    subject_display_name = {
+        "cs": "Computer Studies",
+        "chem": "Chemistry",
+        "bio": "Biology"
+    }.get(subject, "Computer Studies")
+
+    # 2. Connect to Local Vector DB
     client = chromadb.PersistentClient(path=CHROMA_PATH)
     embed_fn = SentenceTransformerEmbeddingFunction(model_name=LOCAL_EMBED_MODEL)
 
     try:
-        collection = client.get_collection(name=COLLECTION_NAME, embedding_function=embed_fn)
+        collection = client.get_collection(name=collection_name, embedding_function=embed_fn)
     except Exception as e:
         return {
-            "answer": "Error: Vector database not found. Please run ingest.py first.",
+            "answer": f"Error: Collection '{collection_name}' not found. Please run ingest.py for this subject.",
             "mode": "error",
             "sources": []
         }
 
-    # 2. Retrieve Relevant Curriculum Chunks
-    results = collection.query(query_texts=[user_query], n_results=3)
+    # 3. Retrieve Relevant Curriculum Chunks
+    # We retrieve 4 results now to provide a broader context for the larger science subjects
+    results = collection.query(query_texts=[user_query], n_results=4)
 
-    # Extract text and sources (metadata)
     context_text = "\n\n---\n\n".join(results['documents'][0])
-    # Extract unique sub-strand numbers for the UI badges
+
+    # Extract unique source citations (like) and sub-strand numbers
     raw_sources = [m.get("sub_strand", "General") for m in results['metadatas'][0]]
     sources = list(set(raw_sources))
 
-    # 3. Setup Gemini Brain
+    # 4. Setup Gemini Brain
     llm = ChatGoogleGenerativeAI(
         model="gemini-2.5-flash",
         google_api_key=os.getenv("GOOGLE_API_KEY")
     )
 
-    # 4. INTENT DETECTION (The Router)
-    # If the user selected a specific mode in the HTML sidebar, we skip detection.
+    # 5. INTENT DETECTION (The Router)
     if manual_mode != "auto":
         mode = manual_mode
     else:
@@ -111,20 +125,21 @@ def ask(user_query, manual_mode="auto"):
         """
         detected_mode = llm.invoke(intent_prompt).content.strip().lower()
 
-        # Mapping UI names to Template keys
         mode = "tutor"  # default
         for key in TEMPLATES.keys():
             if key in detected_mode:
                 mode = key
                 break
 
-    # 5. Execute Final Chain
-    prompt = PromptTemplate(template=TEMPLATES.get(mode, TEMPLATES["tutor"]), input_variables=["context", "question"])
+    # 6. Execute Final Chain
+    # We inject the subject_name into the template for better personality
+    template = TEMPLATES.get(mode, TEMPLATES["tutor"]).replace("{subject_name}", subject_display_name)
+
+    prompt = PromptTemplate(template=template, input_variables=["context", "question"])
     chain = prompt | llm
 
     response = chain.invoke({"context": context_text, "question": user_query})
 
-    # 6. Return the Dictionary format expected by server.py
     return {
         "answer": response.content,
         "mode": mode,

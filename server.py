@@ -1,5 +1,5 @@
 """
-server.py — FastAPI server exposing the RAG pipeline as an HTTP API.
+server.py — Multi-Subject FastAPI server for KICD Grade 10 RAG.
 Run: uvicorn server:app --reload --port 8000
 """
 
@@ -11,16 +11,15 @@ from typing import Optional
 from fastapi.responses import FileResponse
 import asyncio
 import json
-# Updated import: Only importing 'ask' from pipeline.py
 from pipeline import ask
 
 app = FastAPI(
-    title="Grade 10 CS RAG API",
-    description="Agentic RAG pipeline for Longman Grade 10 Computer Studies",
-    version="1.0.0",
+    title="Grade 10 Multi-Subject RAG API",
+    description="Agentic RAG pipeline supporting Computer Studies, Chemistry, and Biology",
+    version="1.1.0",
 )
 
-# Enable CORS so your index.html can talk to this server
+# Enable CORS for local UI interaction
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -31,7 +30,8 @@ app.add_middleware(
 
 class QueryRequest(BaseModel):
     query: str
-    mode: Optional[str] = "auto"  # auto | tutor | quiz | lesson | teacher
+    mode: Optional[str] = "auto"    # auto | tutor | quiz | lesson | teacher
+    subject: Optional[str] = "cs"   # cs | chem | bio
 
 class QueryResponse(BaseModel):
     answer: str
@@ -46,12 +46,11 @@ async def read_index():
 def health():
     return {"status": "healthy"}
 
-
 @app.post("/ask", response_model=QueryResponse)
 def ask_question(req: QueryRequest):
     try:
-        # Calls the 'ask' function in pipeline.py
-        result = ask(req.query, req.mode or "auto")
+        # Now passing 'subject' to the pipeline
+        result = ask(req.query, req.mode or "auto", req.subject or "cs")
         return QueryResponse(
             answer=result["answer"],
             mode=result["mode"],
@@ -62,23 +61,21 @@ def ask_question(req: QueryRequest):
 
 @app.post("/ask/stream")
 async def ask_stream(req: QueryRequest):
-    """Streaming endpoint — streams answer tokens as SSE."""
+    """Streaming endpoint — updated to be subject-aware."""
 
     async def event_stream():
-        # Run the synchronous 'ask' function in a separate thread to keep FastAPI async
         loop = asyncio.get_event_loop()
         try:
-            result = await loop.run_in_executor(None, ask, req.query, req.mode or "auto")
+            # Passing subject to the executor
+            result = await loop.run_in_executor(None, ask, req.query, req.mode or "auto", req.subject or "cs")
 
-            # Stream answer word by word to simulate real-time typing in the UI
             words = result["answer"].split(" ")
             for i, word in enumerate(words):
                 chunk = word + (" " if i < len(words) - 1 else "")
                 data = json.dumps({"token": chunk, "done": False})
                 yield f"data: {data}\n\n"
-                await asyncio.sleep(0.01) # Small delay for smooth typing effect
+                await asyncio.sleep(0.01)
 
-            # Final message with metadata (mode and sources)
             final = json.dumps({
                 "token": "",
                 "done": True,
