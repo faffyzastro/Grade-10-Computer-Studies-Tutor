@@ -1,1 +1,1 @@
-web: uvicorn server:app --host 0.0.0.0 --port $PORT
+web: python ingest.py --file bio.md --subject bio && python ingest.py --file chem.md --subject chem && python ingest.py --file "Computer-Studies-new-2026-curriculum-design-for-grade-10-by-KICD.md" --subject cs && uvicorn server:app --host 0.0.0.0 --port $PORT
