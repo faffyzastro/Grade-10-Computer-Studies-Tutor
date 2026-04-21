@@ -62,17 +62,17 @@ TEMPLATES = {
 
 
 def get_llm():
-    """
-    Creates the LLM instance at call time so the API key
-    is always read from the live environment, not at import time.
-    Works on both local (.env) and Railway (environment variables).
-    """
-    api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
+    api_key = (
+            os.environ.get("GOOGLE_API_KEY") or
+            os.environ.get("GEMINI_API_KEY") or
+            os.getenv("GOOGLE_API_KEY") or
+            os.getenv("GEMINI_API_KEY")
+    )
     if not api_key:
-        raise ValueError(
-            "No API key found. Set GOOGLE_API_KEY in Railway Variables "
-            "or in your local .env file."
-        )
+        # Last resort — hardcode temporarily to confirm everything else works
+        # REMOVE THIS after confirming
+        api_key = "AIzaSyDDzt-YVRQjNZf0KtyyNCzdeugoJ2FPufQ"
+
     return ChatGoogleGenerativeAI(
         model="gemini-1.5-flash",
         google_api_key=api_key,
