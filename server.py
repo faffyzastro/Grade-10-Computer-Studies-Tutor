@@ -11,6 +11,7 @@ from typing import Optional
 from fastapi.responses import FileResponse
 import asyncio
 import json
+import os
 from pipeline import ask
 
 app = FastAPI(
@@ -46,10 +47,20 @@ async def read_index():
 def health():
     return {"status": "healthy"}
 
+@app.get("/debug-env")
+def debug_env():
+    google_key = os.environ.get("GOOGLE_API_KEY", "NOT FOUND")
+    gemini_key = os.environ.get("GEMINI_API_KEY", "NOT FOUND")
+    return {
+        "GOOGLE_API_KEY_exists": google_key != "NOT FOUND",
+        "GOOGLE_API_KEY_preview": google_key[:8] + "..." if google_key != "NOT FOUND" else "NOT FOUND",
+        "GEMINI_API_KEY_exists": gemini_key != "NOT FOUND",
+        "all_env_keys": sorted(list(os.environ.keys()))
+    }
+
 @app.post("/ask", response_model=QueryResponse)
 def ask_question(req: QueryRequest):
     try:
-        # Now passing 'subject' to the pipeline
         result = ask(req.query, req.mode or "auto", req.subject or "cs")
         return QueryResponse(
             answer=result["answer"],
@@ -66,7 +77,6 @@ async def ask_stream(req: QueryRequest):
     async def event_stream():
         loop = asyncio.get_event_loop()
         try:
-            # Passing subject to the executor
             result = await loop.run_in_executor(None, ask, req.query, req.mode or "auto", req.subject or "cs")
 
             words = result["answer"].split(" ")
