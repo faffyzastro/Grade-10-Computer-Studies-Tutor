@@ -71,7 +71,7 @@ def get_llm():
     if not api_key:
         # Last resort — hardcode temporarily to confirm everything else works
         # REMOVE THIS after confirming
-        api_key = "AIzaSyBm_1MnA75wn-z1CSUES_uxp1oZUx69i1U"
+        raise ValueError("No API key found. Set GOOGLE_API_KEY in Railway Variables.")
 
     return ChatGoogleGenerativeAI(
         model="gemini-2.5-flash",
