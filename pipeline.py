@@ -5,21 +5,32 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import PromptTemplate
 from dotenv import load_dotenv
 
-# 1. Load your API keys
+# 1. Load your API keys immediately
 load_dotenv()
+API_KEY = os.getenv("GOOGLE_API_KEY")
 
 # --- CONFIGURATION ---
 CHROMA_PATH = "./chroma_db"
 LOCAL_EMBED_MODEL = "all-MiniLM-L6-v2"
 
-# Map incoming subject keys to their respective collection names
+# --- GLOBAL INITIALIZATION (Loaded once at startup for speed) ---
+# This prevents the 500 errors and slowness you were seeing
+client = chromadb.PersistentClient(path=CHROMA_PATH)
+embed_fn = SentenceTransformerEmbeddingFunction(model_name=LOCAL_EMBED_MODEL)
+
+# Initialize Gemini correctly with the explicit API key
+llm = ChatGoogleGenerativeAI(
+    model="gemini-1.5-flash",
+    google_api_key=API_KEY,
+    temperature=0.7
+)
+
 COLLECTION_MAP = {
     "cs": "cs_grade10_kicd",
     "chem": "chem_grade10_kicd",
     "bio": "bio_grade10_kicd"
 }
 
-# --- THE 4 MODES (Updated to be Subject-Agnostic) ---
 TEMPLATES = {
     "tutor": """
     You are an expert Grade 10 Tutor in Kenya specializing in {subject_name}. 
@@ -29,7 +40,6 @@ TEMPLATES = {
     CONTEXT: {context}
     STUDENT QUESTION: {question}
     """,
-
     "quiz": """
     You are a Quiz Generator for the Grade 10 {subject_name} KICD Curriculum. 
     Based on the context, create:
@@ -41,27 +51,17 @@ TEMPLATES = {
     CONTEXT: {context}
     TOPIC: {question}
     """,
-
     "lesson": """
     You are a Professional {subject_name} Lesson Planner. 
     Create a 40-minute lesson plan based on the curriculum design context.
-    Use this structure:
-    - Objectives (based on Bloom's Taxonomy & Learning Outcomes)
-    - Introduction (5 mins)
-    - Content Delivery & Guided Practice (20 mins)
-    - Independent Activity (10 mins)
-    - Conclusion/Plenary (5 mins)
+    Structure: Objectives, Introduction (5m), Content Delivery (20m), Activity (10m), Conclusion (5m).
 
     CONTEXT: {context}
     LESSON TOPIC: {question}
     """,
-
     "teacher": """
     You are a Teacher's Assistant for Grade 10 {subject_name}. 
-    Provide the following for the requested topic:
-    1. A real-world Kenyan analogy (e.g., using local farming, M-Pesa, household items, or local markets).
-    2. Common student misconceptions to watch out for in this topic.
-    3. Key 'Board Notes' (The most important summary for students to copy).
+    Provide: 1. A real-world Kenyan analogy. 2. Common misconceptions. 3. Key 'Board Notes'.
 
     CONTEXT: {context}
     TOPIC: {question}
@@ -70,9 +70,6 @@ TEMPLATES = {
 
 
 def ask(user_query, manual_mode="auto", subject="cs"):
-    """
-    The main RAG pipeline function updated for Multi-Subject support.
-    """
     # 1. Resolve Collection Name
     collection_name = COLLECTION_MAP.get(subject, "cs_grade10_kicd")
     subject_display_name = {
@@ -81,64 +78,37 @@ def ask(user_query, manual_mode="auto", subject="cs"):
         "bio": "Biology"
     }.get(subject, "Computer Studies")
 
-    # 2. Connect to Local Vector DB
-    client = chromadb.PersistentClient(path=CHROMA_PATH)
-    embed_fn = SentenceTransformerEmbeddingFunction(model_name=LOCAL_EMBED_MODEL)
-
+    # 2. Get Collection (Using the global 'client' and 'embed_fn')
     try:
         collection = client.get_collection(name=collection_name, embedding_function=embed_fn)
     except Exception as e:
         return {
-            "answer": f"Error: Collection '{collection_name}' not found. Please run ingest.py for this subject.",
+            "answer": f"Error: Collection '{collection_name}' not found. Please ensure ingestion completed.",
             "mode": "error",
             "sources": []
         }
 
-    # 3. Retrieve Relevant Curriculum Chunks
-    # We retrieve 4 results now to provide a broader context for the larger science subjects
+    # 3. Retrieve Context
     results = collection.query(query_texts=[user_query], n_results=4)
-
     context_text = "\n\n---\n\n".join(results['documents'][0])
+    sources = list(set([m.get("sub_strand", "General") for m in results['metadatas'][0]]))
 
-    # Extract unique source citations (like) and sub-strand numbers
-    raw_sources = [m.get("sub_strand", "General") for m in results['metadatas'][0]]
-    sources = list(set(raw_sources))
-
-    # 4. Setup Gemini Brain
-    llm = ChatGoogleGenerativeAI(
-        llm=ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash"
-        )
-    )
-
-    # 5. INTENT DETECTION (The Router)
+    # 4. INTENT DETECTION
     if manual_mode != "auto":
         mode = manual_mode
     else:
-        intent_prompt = f"""
-        Analyze the user input: "{user_query}"
-        Classify it into exactly one of these 4 categories: 'tutor', 'quiz', 'lesson', 'teacher'.
-        - If they ask for an explanation or 'what is': 'tutor'
-        - If they ask for a test, quiz, or questions: 'quiz'
-        - If they mention a lesson plan or 'how to teach': 'lesson'
-        - If they ask for analogies, board notes, or teacher tips: 'teacher'
-        Output ONLY the category name.
-        """
-        detected_mode = llm.invoke(intent_prompt).content.strip().lower()
+        intent_prompt = f"Analyze: '{user_query}'. Classify as: 'tutor', 'quiz', 'lesson', or 'teacher'. Output ONLY the word."
+        try:
+            detected_mode = llm.invoke(intent_prompt).content.strip().lower()
+            mode = next((k for k in TEMPLATES if k in detected_mode), "tutor")
+        except:
+            mode = "tutor"
 
-        mode = "tutor"  # default
-        for key in TEMPLATES.keys():
-            if key in detected_mode:
-                mode = key
-                break
+    # 5. Execute Final Chain
+    template_str = TEMPLATES.get(mode, TEMPLATES["tutor"]).replace("{subject_name}", subject_display_name)
+    prompt = PromptTemplate(template=template_str, input_variables=["context", "question"])
 
-    # 6. Execute Final Chain
-    # We inject the subject_name into the template for better personality
-    template = TEMPLATES.get(mode, TEMPLATES["tutor"]).replace("{subject_name}", subject_display_name)
-
-    prompt = PromptTemplate(template=template, input_variables=["context", "question"])
     chain = prompt | llm
-
     response = chain.invoke({"context": context_text, "question": user_query})
 
     return {
