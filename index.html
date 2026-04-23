@@ -625,7 +625,7 @@ async function sendMessage(){
     document.getElementById('api-status').textContent='Connected';
   }catch(err){
     removeTypingIndicator();
-    addMessage('assistant',` We are undergoing Maintenance, Please try again later.');
+    addMessage('assistant', 'We are undergoing Maintenance, Please try again later.');
     document.getElementById('api-status').textContent='Disconnected';
   }
   isLoading=false; document.getElementById('send-btn').disabled=false;
