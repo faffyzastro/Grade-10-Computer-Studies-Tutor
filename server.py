@@ -1,26 +1,21 @@
 """
-server.py — Multi-Subject FastAPI server for KICD Grade 10 RAG.
-Run: uvicorn server:app --reload --port 8000
+server.py — FastAPI server with true SSE streaming from Gemini.
+Run: uvicorn server:app --host 0.0.0.0 --port $PORT
 """
 
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
-from typing import Optional
-from fastapi.responses import FileResponse
-import asyncio
 import json
-import os
-from pipeline import ask
+import asyncio
+from typing import Optional
 
-app = FastAPI(
-    title="Grade 10 Multi-Subject RAG API",
-    description="Agentic RAG pipeline supporting Computer Studies, Chemistry, and Biology",
-    version="1.1.0",
-)
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, StreamingResponse
+from pydantic import BaseModel
 
-# Enable CORS for local UI interaction
+from pipeline import ask, ask_stream
+
+app = FastAPI(title="ElimuAI — Grade 10 Study Assistant", version="2.0.0")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -29,74 +24,92 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class QueryRequest(BaseModel):
-    query: str
-    mode: Optional[str] = "auto"    # auto | tutor | quiz | lesson | teacher
-    subject: Optional[str] = "cs"   # cs | chem | bio
 
-class QueryResponse(BaseModel):
-    answer: str
-    mode: str
-    sources: list[str]
+# ─── REQUEST MODELS ──────────────────────────────────────────────────────────
+
+class QueryRequest(BaseModel):
+    query:   str
+    mode:    Optional[str] = "auto"     # auto | tutor | quiz | lesson | teacher
+    subject: Optional[str] = "cs"       # cs | chem | bio
+
+
+# ─── ROUTES ──────────────────────────────────────────────────────────────────
 
 @app.get("/")
-async def read_index():
-    return FileResponse('index.html')
+async def serve_ui():
+    return FileResponse("index.html")
+
 
 @app.get("/health")
 def health():
-    return {"status": "healthy"}
+    return {"status": "healthy", "service": "ElimuAI"}
 
-@app.get("/debug-env")
-def debug_env():
-    google_key = os.environ.get("GOOGLE_API_KEY", "NOT FOUND")
-    gemini_key = os.environ.get("GEMINI_API_KEY", "NOT FOUND")
-    return {
-        "GOOGLE_API_KEY_exists": google_key != "NOT FOUND",
-        "GOOGLE_API_KEY_preview": google_key[:8] + "..." if google_key != "NOT FOUND" else "NOT FOUND",
-        "GEMINI_API_KEY_exists": gemini_key != "NOT FOUND",
-        "all_env_keys": sorted(list(os.environ.keys()))
-    }
 
-@app.post("/ask", response_model=QueryResponse)
+# ── Non-streaming (kept as fallback) ─────────────────────────────────────────
+@app.post("/ask")
 def ask_question(req: QueryRequest):
-    try:
-        result = ask(req.query, req.mode or "auto", req.subject or "cs")
-        return QueryResponse(
-            answer=result["answer"],
-            mode=result["mode"],
-            sources=result["sources"],
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    result = ask(req.query, req.mode or "auto", req.subject or "cs")
+    return result
 
+
+# ── TRUE streaming endpoint ───────────────────────────────────────────────────
 @app.post("/ask/stream")
-async def ask_stream(req: QueryRequest):
-    """Streaming endpoint — updated to be subject-aware."""
+async def ask_stream_endpoint(req: QueryRequest):
+    """
+    Server-Sent Events endpoint.
+    Tokens arrive from Gemini in real-time and are forwarded immediately
+    to the browser — no buffering, no waiting for the full response.
 
-    async def event_stream():
+    Each SSE event is JSON:
+      {"token": "word ", "done": false}        ← content token
+      {"token": "", "done": true,              ← final frame
+       "mode": "tutor", "sources": ["1.2"]}
+      {"error": "...", "done": true}           ← on error
+    """
+
+    async def event_generator():
         loop = asyncio.get_event_loop()
-        try:
-            result = await loop.run_in_executor(None, ask, req.query, req.mode or "auto", req.subject or "cs")
 
-            words = result["answer"].split(" ")
-            for i, word in enumerate(words):
-                chunk = word + (" " if i < len(words) - 1 else "")
-                data = json.dumps({"token": chunk, "done": False})
-                yield f"data: {data}\n\n"
-                await asyncio.sleep(0.01)
+        # ask_stream() is a sync generator — run it in a thread pool
+        # so it doesn't block the async event loop.
+        # We bridge it by pushing chunks through an asyncio.Queue.
+        queue: asyncio.Queue = asyncio.Queue()
 
-            final = json.dumps({
-                "token": "",
-                "done": True,
-                "mode": result["mode"],
-                "sources": result["sources"],
-            })
-            yield f"data: {final}\n\n"
-        except Exception as e:
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+        def run_stream():
+            try:
+                for chunk in ask_stream(
+                    req.query,
+                    req.mode or "auto",
+                    req.subject or "cs",
+                ):
+                    loop.call_soon_threadsafe(queue.put_nowait, chunk)
+            except Exception as e:
+                loop.call_soon_threadsafe(
+                    queue.put_nowait, {"error": str(e), "done": True}
+                )
+            finally:
+                # Sentinel to signal the generator is finished
+                loop.call_soon_threadsafe(queue.put_nowait, None)
 
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
+        # Start the sync pipeline in a background thread
+        loop.run_in_executor(None, run_stream)
+
+        # Forward chunks to the client as SSE as soon as they arrive
+        while True:
+            chunk = await queue.get()
+            if chunk is None:
+                break  # Stream finished
+            yield f"data: {json.dumps(chunk)}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",   # disables nginx buffering on Railway
+        },
+    )
+
 
 if __name__ == "__main__":
     import uvicorn
