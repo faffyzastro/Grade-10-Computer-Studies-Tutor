@@ -91,6 +91,33 @@ KNOWLEDGE_MAPS = {
             "reproductive health": "3.2", "rti": "3.2", "syphilis": "3.2",
             "family planning": "3.3", "contraceptive": "3.3", "abstinence": "3.3"
         }
+    },
+    "pretech": {
+        "collection": "pretech_grade9_kicd",
+        "strands": {
+            "1": "Foundations of Pre-Technical Studies",
+            "2": "Communication in Pre-Technical Studies",
+            "3": "Materials for Production",
+            "4": "Tools and Production",
+            "5": "Entrepreneurship"
+        },
+        "keywords": {
+            "raised platform": "1.1", "scaffolding": "1.1", "ladder": "1.1", "fall protection": "1.1",
+            "safety on raised": "1.1",
+            "hazardous": "1.2", "chemical safety": "1.2", "msds": "1.2", "ppe": "1.2",
+            "handling hazardous": "1.2",
+            "career": "1.3", "self-exploration": "1.3", "vocational": "1.3",
+            "oblique": "2.1", "projection": "2.1", "orthographic": "2.1",
+            "visual programming": "2.2", "scratch": "2.2", "block coding": "2.2",
+            "wood": "3.1", "timber": "3.1", "plywood": "3.1",
+            "waste": "3.2", "recycl": "3.2", "disposal": "3.2",
+            "holding tool": "4.1", "clamp": "4.1", "vice": "4.1", "pliers": "4.1",
+            "driving tool": "4.2", "hammer": "4.2", "screwdriver": "4.2",
+            "project": "4.3", "prototype": "4.3",
+            "financial": "5.1", "bank": "5.1", "loan": "5.1", "sacco": "5.1",
+            "government": "5.2", "regulation": "5.2", "tax": "5.2", "license": "5.2",
+            "business plan": "5.3", "startup": "5.3", "market": "5.3"
+        }
     }
 }
 
@@ -107,7 +134,7 @@ def detect_sub_strand(text: str, subject: str) -> str:
 
 def ingest_markdown(file_path: str, subject: str):
     if subject not in KNOWLEDGE_MAPS:
-        print(f"ERROR: Subject '{subject}' not supported. Use 'cs', 'chem', or 'bio'.")
+        print(f"ERROR: Subject '{subject}' not supported. Use 'cs', 'chem', 'bio', or 'pretech'.")
         return
 
     config = KNOWLEDGE_MAPS[subject]
@@ -174,7 +201,7 @@ def ingest_markdown(file_path: str, subject: str):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--file", required=True)
-    parser.add_argument("--subject", required=True, choices=["cs", "chem", "bio"])
+    parser.add_argument("--subject", required=True, choices=["cs", "chem", "bio", "pretech"])
     args = parser.parse_args()
 
     ingest_markdown(args.file, args.subject)

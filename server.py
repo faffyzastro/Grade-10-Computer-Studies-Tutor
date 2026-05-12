@@ -30,7 +30,7 @@ app.add_middleware(
 class QueryRequest(BaseModel):
     query:   str
     mode:    Optional[str] = "auto"     # auto | tutor | quiz | lesson | teacher
-    subject: Optional[str] = "cs"       # cs | chem | bio
+    subject: Optional[str] = "cs"       # cs | chem | bio | pretech
 
 
 # ─── ROUTES ──────────────────────────────────────────────────────────────────

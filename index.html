@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>ElimuAI · Grade 10 Study Platform</title>
+<title>ElimuAI · CBC Study Platform</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -86,12 +86,13 @@
   .logo-sub  { font-size:9.5px; color:rgba(255,255,255,0.65); letter-spacing:0.04em; text-transform:uppercase; margin-left:44px; }
   .kicd-badge { display:inline-block; margin-top:9px; font-size:9px; font-weight:700; letter-spacing:0.10em; text-transform:uppercase; padding:3px 8px; border-radius:4px; background:rgba(255,255,255,0.15); color:rgba(255,255,255,0.90); border:1px solid rgba(255,255,255,0.25); }
 
-  .subject-row { padding:10px 12px; display:flex; gap:5px; border-bottom:1px solid var(--border); background:var(--bg3); flex-shrink:0; }
-  .subj-pill { flex:1; font-size:11px; font-weight:600; padding:6px 4px; border-radius:8px; border:1.5px solid transparent; background:var(--surface); color:var(--text2); cursor:pointer; text-align:center; transition:all 0.2s; font-family:var(--font-body); box-shadow:var(--shadow-sm); }
+  .subject-row { padding:10px 12px; display:flex; flex-wrap:wrap; gap:5px; border-bottom:1px solid var(--border); background:var(--bg3); flex-shrink:0; }
+  .subj-pill { flex:1 1 calc(50% - 4px); min-width:68px; font-size:11px; font-weight:600; padding:6px 4px; border-radius:8px; border:1.5px solid transparent; background:var(--surface); color:var(--text2); cursor:pointer; text-align:center; transition:all 0.2s; font-family:var(--font-body); box-shadow:var(--shadow-sm); }
   .subj-pill:hover { color:var(--accent); border-color:var(--accent-glow); }
-  .subj-pill.active[data-subj="cs"]   { background:#ede7f6; border-color:#7c4db5; color:#5c2d8f; }
-  .subj-pill.active[data-subj="chem"] { background:#e0f4ee; border-color:#1a9e6e; color:#0f6e56; }
-  .subj-pill.active[data-subj="bio"]  { background:#fff0e0; border-color:#d86000; color:#b84800; }
+  .subj-pill.active[data-subj="cs"]      { background:#ede7f6; border-color:#7c4db5; color:#5c2d8f; }
+  .subj-pill.active[data-subj="chem"]   { background:#e0f4ee; border-color:#1a9e6e; color:#0f6e56; }
+  .subj-pill.active[data-subj="bio"]    { background:#fff0e0; border-color:#d86000; color:#b84800; }
+  .subj-pill.active[data-subj="pretech"]{ background:#e3eef5; border-color:#3d7ea6; color:#1e5f8a; }
 
   .sidebar-section { padding:10px 12px 8px; border-bottom:1px solid var(--border); flex-shrink:0; }
   .section-label { font-size:9px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:var(--text3); margin-bottom:6px; }
@@ -303,9 +304,10 @@
   </div>
 
   <div class="subject-row">
-    <button class="subj-pill active" data-subj="cs"   onclick="switchSubject('cs',this)">Computer</button>
-    <button class="subj-pill"        data-subj="chem" onclick="switchSubject('chem',this)">Chemistry</button>
-    <button class="subj-pill"        data-subj="bio"  onclick="switchSubject('bio',this)">Biology</button>
+    <button class="subj-pill active" data-subj="cs"      onclick="switchSubject('cs',this)">Computer</button>
+    <button class="subj-pill"        data-subj="chem"    onclick="switchSubject('chem',this)">Chemistry</button>
+    <button class="subj-pill"        data-subj="bio"     onclick="switchSubject('bio',this)">Biology</button>
+    <button class="subj-pill"        data-subj="pretech" onclick="switchSubject('pretech',this)">Pre-Tech</button>
   </div>
 
   <div class="sidebar-section">
@@ -333,7 +335,7 @@
 <main class="main" id="main-panel">
   <header class="chat-header">
     <div class="chat-header-left">
-      <span class="header-title">Grade 10 AI Assistant</span>
+      <span class="header-title">CBC AI Assistant</span>
       <div class="subject-badge" id="header-subject-badge">Computer Studies</div>
       <div class="mode-badge"    id="header-mode-badge">Auto</div>
     </div>
@@ -344,7 +346,7 @@
     <div class="welcome-block" id="welcome-block">
       <div class="welcome-icon" id="welcome-icon">🖥️</div>
       <h1>What would you like to study today?</h1>
-      <p>Your KICD-aligned Grade 10 AI tutor for Computer Studies, Chemistry, and Biology.</p>
+      <p>Your KICD-aligned tutor: Grade 9 Pre-Technical Studies and Grade 10 Computer Studies, Chemistry, and Biology.</p>
       <div class="starter-chips" id="starter-chips"></div>
     </div>
   </div>
@@ -471,6 +473,36 @@ const SUBJECTS = {
         {num:'3.1',label:'Reproductive System',q:'Human reproductive system gametes fertilization'},
         {num:'3.2',label:'Reproductive Health',q:'Reproductive health RTI syphilis STI prevention'},
         {num:'3.3',label:'Family Planning',q:'Family planning contraceptives abstinence methods'},
+      ]},
+    ]
+  },
+  pretech:{
+    icon:'🛠️',label:'PreTech9 Kenya',subtitle:'Grade 9 Pre-Technical Studies',displayName:'Pre-Technical Studies',
+    accent:{a:'#1e5f8a',mid:'#3d7ea6',pale:'#e3eef5',glow:'#9ec4dc'},
+    starters:['What is safety on raised platforms?','Explain oblique projection drawing','Quiz on wood as a material for production','Lesson plan for entrepreneurship business plan'],
+    strands:[
+      {title:'Strand 1 · Foundations',subs:[
+        {num:'1.1',label:'Safety on Raised Platforms',q:'Safety on raised platforms scaffolding ladders fall protection'},
+        {num:'1.2',label:'Handling Hazardous Substances',q:'Handling hazardous substances chemical safety PPE MSDS'},
+        {num:'1.3',label:'Self-Exploration & Career',q:'Self-exploration career development vocational pathways Kenya'},
+      ]},
+      {title:'Strand 2 · Communication',subs:[
+        {num:'2.1',label:'Oblique Projection',q:'Oblique projection technical drawing Kenya'},
+        {num:'2.2',label:'Visual Programming',q:'Visual programming block coding Scratch basics'},
+      ]},
+      {title:'Strand 3 · Materials for Production',subs:[
+        {num:'3.1',label:'Wood',q:'Wood timber plywood materials for production'},
+        {num:'3.2',label:'Handling Waste Materials',q:'Handling waste materials recycling disposal'},
+      ]},
+      {title:'Strand 4 · Tools and Production',subs:[
+        {num:'4.1',label:'Holding Tools',q:'Holding tools clamps vice pliers workshop'},
+        {num:'4.2',label:'Driving Tools',q:'Driving tools hammer screwdriver workshop safety'},
+        {num:'4.3',label:'Project',q:'Pre-technical studies integrated project prototype'},
+      ]},
+      {title:'Strand 5 · Entrepreneurship',subs:[
+        {num:'5.1',label:'Financial Services',q:'Financial services banks loans SACCO Kenya'},
+        {num:'5.2',label:'Government and Business',q:'Government and business regulation tax license Kenya'},
+        {num:'5.3',label:'Business Plan',q:'Business plan startup market analysis CBC entrepreneurship'},
       ]},
     ]
   }

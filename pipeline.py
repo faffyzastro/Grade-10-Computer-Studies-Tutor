@@ -25,15 +25,24 @@ CHROMA_PATH      = "./chroma_db"
 LOCAL_EMBED_MODEL = "all-MiniLM-L6-v2"
 
 COLLECTION_NAMES = {
-    "cs":   "cs_grade10_kicd",
-    "chem": "chem_grade10_kicd",
-    "bio":  "bio_grade10_kicd",
+    "cs":      "cs_grade10_kicd",
+    "chem":    "chem_grade10_kicd",
+    "bio":     "bio_grade10_kicd",
+    "pretech": "pretech_grade9_kicd",
 }
 
 SUBJECT_LABELS = {
-    "cs":   "Computer Studies",
-    "chem": "Chemistry",
-    "bio":  "Biology",
+    "cs":      "Computer Studies",
+    "chem":    "Chemistry",
+    "bio":     "Biology",
+    "pretech": "Pre-Technical Studies",
+}
+
+SUBJECT_GRADE_LEVEL = {
+    "cs":      "Grade 10",
+    "chem":    "Grade 10",
+    "bio":     "Grade 10",
+    "pretech": "Grade 9",
 }
 
 # ─── ROUND-ROBIN KEY POOL ────────────────────────────────────────────────────
@@ -81,7 +90,7 @@ def _is_quota_error(e: Exception) -> bool:
 # ─── PROMPT TEMPLATES ────────────────────────────────────────────────────────
 
 TEMPLATES = {
-    "tutor": """You are an expert Grade 10 {subject_label} Tutor in Kenya.
+    "tutor": """You are an expert {grade_level} {subject_label} Tutor in Kenya.
 Explain concepts clearly using the context. Use bullet points for clarity.
 Connect explanations to real Kenyan everyday life (M-Pesa, matatus, hospitals, farms) where helpful.
 End with ONE follow-up question to deepen the student's thinking.
@@ -90,7 +99,7 @@ CONTEXT: {context}
 STUDENT QUESTION: {question}
 ANSWER:""",
 
-    "quiz": """You are a Quiz Generator for the KICD 2026 Curriculum ({subject_label}).
+    "quiz": """You are a Quiz Generator for the KICD 2026 Curriculum ({subject_label}, {grade_level}).
 Based on the context, create:
 1. Three Multiple Choice Questions (4 options each, mark correct with *)
 2. Two Short Answer Questions
@@ -101,7 +110,7 @@ CONTEXT: {context}
 TOPIC: {question}
 QUIZ:""",
 
-    "lesson": """You are a CBC Lesson Planner for Grade 10 {subject_label} in Kenya.
+    "lesson": """You are a CBC Lesson Planner for {grade_level} {subject_label} in Kenya.
 Create a 40-minute lesson plan:
 - Strand & Sub-strand (KICD curriculum)
 - Specific Learning Outcomes (Bloom's Taxonomy verbs)
@@ -117,7 +126,7 @@ CONTEXT: {context}
 LESSON TOPIC: {question}
 LESSON PLAN:""",
 
-    "teacher": """You are a Teacher's Assistant for Grade 10 {subject_label} in Kenya.
+    "teacher": """You are a Teacher's Assistant for {grade_level} {subject_label} in Kenya.
 Provide:
 1. A real-world Kenyan analogy (M-Pesa, matatus, local markets, hospitals, farms).
 2. Common student misconceptions and how to correct them.
@@ -197,6 +206,7 @@ def ask_stream(
       {"error": "message", "done": True}          ← on failure
     """
     subject_label = SUBJECT_LABELS.get(subject, "Computer Studies")
+    grade_level   = SUBJECT_GRADE_LEVEL.get(subject, "Grade 10")
 
     # Step 1 — Retrieve context
     try:
@@ -211,11 +221,12 @@ def ask_stream(
     # Step 3 — Build prompt
     prompt_text = PromptTemplate(
         template=TEMPLATES.get(mode, TEMPLATES["tutor"]),
-        input_variables=["context", "question", "subject_label"],
+        input_variables=["context", "question", "subject_label", "grade_level"],
     ).format(
         context=context_text,
         question=user_query,
         subject_label=subject_label,
+        grade_level=grade_level,
     )
 
     # Step 4 — Stream tokens from Gemini with key rotation
