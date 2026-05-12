@@ -6,6 +6,8 @@
 <title>ElimuAI · CBC Study Platform</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -170,6 +172,13 @@
   .msg-bubble li { margin-bottom:3px; }
   .msg-bubble h3 { font-size:13px; font-weight:600; margin:8px 0 3px; color:var(--accent); }
   .msg-bubble p  { margin-bottom:5px; } .msg-bubble p:last-child { margin-bottom:0; }
+
+  .diagram-fence { margin:10px 0; padding:10px 12px; border-radius:10px; border:1px solid var(--border2); background:var(--surface2); font-size:12px; overflow-x:auto; }
+  .diagram-fence code { font-family:var(--font-mono); font-size:11px; white-space:pre-wrap; word-break:break-word; background:transparent; border:none; color:var(--text2); padding:0; }
+  pre.mermaid { margin:10px 0; padding:12px; border-radius:10px; border:1px solid var(--border2); background:var(--surface2); overflow-x:auto; }
+  .svg-diagram { margin:10px 0; max-width:100%; overflow-x:auto; }
+  .svg-diagram svg { max-width:100%; height:auto; display:block; }
+  .svg-fallback { font-size:12px; color:var(--text3); }
 
   ::-webkit-scrollbar { width:3px; }
   ::-webkit-scrollbar-track { background:transparent; }
@@ -384,6 +393,10 @@
 </nav>
 
 <script>
+if (typeof mermaid !== 'undefined') {
+  mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'neutral' });
+}
+
 const API_BASE = 'https://elimuai.ke';
 let currentMode = 'auto', activeSubject = 'cs', isLoading = false;
 let mobTab = 'chat'; // 'menu' or 'chat'
@@ -599,6 +612,80 @@ function setMode(mode,btn) {
 
 function hideWelcome(){const w=document.getElementById('welcome-block');if(w)w.remove();}
 
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/** While streaming, drop text after an unmatched opening ``` so half-written fences do not break HTML. */
+function stripIncompleteCodeFences(text) {
+  const parts = text.split('```');
+  if (parts.length < 2) return text;
+  if (parts.length % 2 === 0) {
+    return parts.slice(0, -1).join('```');
+  }
+  return text;
+}
+
+async function renderDiagrams(root) {
+  if (!root || typeof mermaid === 'undefined') return;
+  const nodes = root.querySelectorAll('pre.mermaid');
+  if (!nodes.length) return;
+  try {
+    await mermaid.run({ nodes: [...nodes] });
+  } catch (e) {
+    console.warn('Mermaid:', e);
+  }
+}
+
+function formatText(t, opts = {}) {
+  const streaming = !!opts.streaming;
+  const raw = streaming ? stripIncompleteCodeFences(t) : t;
+  const placeholders = [];
+  let phIndex = 0;
+  const nextPh = () => `__DIAG_PH_${phIndex++}__`;
+
+  let body = raw;
+  body = body.replace(/```\s*mermaid\n([\s\S]*?)```/gi, (_, code) => {
+    const ph = nextPh();
+    const src = code.trim();
+    placeholders.push([ph, '<pre class="mermaid">' + escapeHtml(src) + '</pre>']);
+    return ph;
+  });
+  body = body.replace(/```\s*svg\n([\s\S]*?)```/gi, (_, code) => {
+    const ph = nextPh();
+    const trimmed = code.trim();
+    let inner;
+    if (streaming) {
+      inner = '<pre class="diagram-fence"><code>' + escapeHtml(trimmed) + '</code></pre>';
+    } else if (typeof DOMPurify !== 'undefined') {
+      inner = '<div class="svg-diagram">' + DOMPurify.sanitize(trimmed, { USE_PROFILES: { svg: true, svgFilters: true } }) + '</div>';
+    } else {
+      inner = '<pre class="diagram-fence"><code>' + escapeHtml(trimmed) + '</code></pre>';
+    }
+    placeholders.push([ph, inner]);
+    return ph;
+  });
+
+  let out = body
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/`(.+?)`/g, '<code>$1</code>')
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>[\s\S]*<\/li>)/, '<ul>$1</ul>')
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/\n/g, '<br>');
+
+  placeholders.forEach(([ph, html]) => {
+    out = out.split(ph).join(html);
+  });
+  return out;
+}
+
 function addMessage(role,text,meta={}) {
   hideWelcome();
   const container=document.getElementById('chat-messages');
@@ -606,7 +693,12 @@ function addMessage(role,text,meta={}) {
   const avatar=document.createElement('div'); avatar.className='msg-avatar';
   avatar.textContent=role==='user'?'You':'AI';
   const bubble=document.createElement('div'); bubble.className='msg-bubble';
-  bubble.innerHTML=formatText(text);
+  if (role === 'user') {
+    bubble.innerHTML = escapeHtml(text).replace(/\n/g, '<br>');
+  } else {
+    bubble.innerHTML = formatText(text, { streaming: false });
+    void renderDiagrams(bubble);
+  }
   if(role==='assistant'&&(meta.mode||meta.sources)){
     const metaRow=document.createElement('div'); metaRow.className='msg-meta';
     if(meta.mode){const col=MODE_COLORS[meta.mode]||'#888';metaRow.innerHTML+=`<span class="meta-mode" style="background:${col}20;color:${col};border:1px solid ${col}40">${meta.mode}</span>`;}
@@ -660,18 +752,6 @@ function setAssistantStreamMeta(view, meta = {}) {
     parts.push(`<span class="source-tag">strands: ${meta.sources.join(', ')}</span>`);
   }
   view.metaRow.innerHTML = parts.join('');
-}
-
-function formatText(t){
-  return t
-    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g,'<em>$1</em>')
-    .replace(/`(.+?)`/g,'<code>$1</code>')
-    .replace(/^### (.+)$/gm,'<h3>$1</h3>')
-    .replace(/^- (.+)$/gm,'<li>$1</li>')
-    .replace(/(<li>[\s\S]*<\/li>)/,'<ul>$1</ul>')
-    .replace(/\n\n/g,'</p><p>')
-    .replace(/\n/g,'<br>');
 }
 
 function addTypingIndicator(){
@@ -743,7 +823,7 @@ async function sendMessage(){
             removeTypingIndicator();
             streamView = createAssistantStreamMessage();
           }
-          streamView.bubble.innerHTML = formatText(fullText);
+          streamView.bubble.innerHTML = formatText(fullText, { streaming: true });
           streamView.container.scrollTop = streamView.container.scrollHeight;
         }
       }
@@ -752,8 +832,11 @@ async function sendMessage(){
     removeTypingIndicator();
     if(!streamView){
       streamView = createAssistantStreamMessage();
-      streamView.bubble.innerHTML = formatText(fullText || 'No response generated.');
+      streamView.bubble.innerHTML = formatText(fullText || 'No response generated.', { streaming: false });
+    } else {
+      streamView.bubble.innerHTML = formatText(fullText || '', { streaming: false });
     }
+    await renderDiagrams(streamView.bubble);
     setAssistantStreamMeta(streamView, finalMeta);
     document.getElementById('api-status').textContent='Connected';
   }catch(err){

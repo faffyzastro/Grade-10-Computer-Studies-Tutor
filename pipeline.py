@@ -138,6 +138,25 @@ TOPIC: {question}
 TEACHER AID:""",
 }
 
+# Shown to the model so the web UI can render diagrams (Mermaid / SVG).
+VISUAL_OUTPUT_RULES = """
+VISUAL OUTPUT (the student app renders diagrams from your reply):
+- When a diagram clarifies the answer (tools, flows, steps), add a fenced Mermaid block using exactly this shape (newline after ```mermaid):
+```mermaid
+flowchart LR
+  A[Label A] --> B[Label B]
+```
+- Prefer short labels. Use flowchart LR/TB, sequenceDiagram, or mindmap when helpful.
+- For very precise technical drawing (e.g. oblique cuboid on a grid, exact angles), Mermaid is often not ideal: give clear step-by-step drawing instructions and/or ASCII. If you still output SVG, use a fenced block ```svg ... ``` containing only SVG markup (no script), one root <svg>...</svg>.
+"""
+
+VISUAL_OUTPUT_RULES_PRETECH = """
+VISUAL OUTPUT (Pre-Technical is highly visual; use diagrams whenever they help):
+- Use ```mermaid fenced blocks for: tool parts (flowchart with labeled nodes), processes, simple comparisons (cavalier vs cabinet as two branches), workshop sequences.
+- For oblique projection, grid-based steps, or dimensioned sketches where geometry must be exact, combine: (1) numbered steps the learner draws on squared paper, (2) optional ```svg ... ``` with a single minimal <svg> (no scripts), or ASCII if simpler.
+- In quizzes, you may show a diagram then ask "Identify the part labeled X" by using matching labels in the Mermaid/SVG and in the question text.
+"""
+
 INTENT_TEMPLATE = """Analyze this user input: "{question}"
 Classify it as exactly ONE word: tutor, quiz, lesson, or teacher.
 - tutor: asking for an explanation or "what is"
@@ -228,6 +247,10 @@ def ask_stream(
         subject_label=subject_label,
         grade_level=grade_level,
     )
+    if subject == "pretech":
+        prompt_text = prompt_text.rstrip() + "\n\n" + VISUAL_OUTPUT_RULES_PRETECH
+    else:
+        prompt_text = prompt_text.rstrip() + "\n\n" + VISUAL_OUTPUT_RULES
 
     # Step 4 — Stream tokens from Gemini with key rotation
     streamed_ok = False
