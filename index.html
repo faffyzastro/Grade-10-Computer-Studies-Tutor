@@ -526,7 +526,8 @@ function switchSubject(subj,btn) {
   document.getElementById('logo-name').textContent=s.label;
   document.getElementById('logo-sub').textContent=`CBC · KICD 2026 · ${s.subtitle}`;
   document.getElementById('header-subject-badge').textContent=s.displayName;
-  document.getElementById('welcome-icon').textContent=s.icon;
+  const welcomeIcon = document.getElementById('welcome-icon');
+  if (welcomeIcon) welcomeIcon.textContent = s.icon;
   renderStrands(); renderStarters();
 }
 
@@ -587,6 +588,48 @@ function addMessage(role,text,meta={}) {
   container.appendChild(wrapper); container.scrollTop=container.scrollHeight;
 }
 
+function createAssistantStreamMessage() {
+  hideWelcome();
+  const container = document.getElementById('chat-messages');
+  const wrapper = document.createElement('div');
+  wrapper.className = 'msg assistant';
+
+  const avatar = document.createElement('div');
+  avatar.className = 'msg-avatar';
+  avatar.textContent = 'AI';
+
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+  bubble.innerHTML = '';
+
+  const metaRow = document.createElement('div');
+  metaRow.className = 'msg-meta';
+
+  const col = document.createElement('div');
+  col.style.cssText = 'display:flex;flex-direction:column';
+  col.appendChild(bubble);
+  col.appendChild(metaRow);
+
+  wrapper.appendChild(avatar);
+  wrapper.appendChild(col);
+  container.appendChild(wrapper);
+  container.scrollTop = container.scrollHeight;
+
+  return { bubble, metaRow, container };
+}
+
+function setAssistantStreamMeta(view, meta = {}) {
+  const parts = [];
+  if (meta.mode) {
+    const col = MODE_COLORS[meta.mode] || '#888';
+    parts.push(`<span class="meta-mode" style="background:${col}20;color:${col};border:1px solid ${col}40">${meta.mode}</span>`);
+  }
+  if (meta.sources && meta.sources.length) {
+    parts.push(`<span class="source-tag">strands: ${meta.sources.join(', ')}</span>`);
+  }
+  view.metaRow.innerHTML = parts.join('');
+}
+
 function formatText(t){
   return t
     .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
@@ -617,11 +660,69 @@ async function sendMessage(){
   isLoading=true; document.getElementById('send-btn').disabled=true;
   addMessage('user',query); addTypingIndicator();
   try{
-    const res=await fetch(`${API_BASE}/ask`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query,mode:currentMode,subject:activeSubject})});
+    const res=await fetch(`${API_BASE}/ask/stream`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query,mode:currentMode,subject:activeSubject})});
     if(!res.ok)throw new Error(`HTTP ${res.status}`);
-    const data=await res.json();
+
+    if(!res.body) throw new Error('No response body');
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let fullText = '';
+    let streamView = null;
+    let finalMeta = { mode: currentMode, sources: [] };
+
+    while(true){
+      const {value, done} = await reader.read();
+      if(done) break;
+
+      buffer += decoder.decode(value, {stream:true});
+      const events = buffer.split('\n\n');
+      buffer = events.pop() || '';
+
+      for(const evt of events){
+        const dataLine = evt
+          .split('\n')
+          .find(line => line.startsWith('data: '));
+        if(!dataLine) continue;
+
+        let payload;
+        try{
+          payload = JSON.parse(dataLine.slice(6));
+        }catch(_){
+          continue;
+        }
+
+        if(payload.error){
+          throw new Error(payload.error);
+        }
+
+        if(payload.done){
+          finalMeta = {
+            mode: payload.mode || finalMeta.mode,
+            sources: payload.sources || finalMeta.sources
+          };
+          continue;
+        }
+
+        const token = payload.token || '';
+        if(token){
+          fullText += token;
+          if(!streamView){
+            removeTypingIndicator();
+            streamView = createAssistantStreamMessage();
+          }
+          streamView.bubble.innerHTML = formatText(fullText);
+          streamView.container.scrollTop = streamView.container.scrollHeight;
+        }
+      }
+    }
+
     removeTypingIndicator();
-    addMessage('assistant',data.answer,{mode:data.mode,sources:data.sources});
+    if(!streamView){
+      streamView = createAssistantStreamMessage();
+      streamView.bubble.innerHTML = formatText(fullText || 'No response generated.');
+    }
+    setAssistantStreamMeta(streamView, finalMeta);
     document.getElementById('api-status').textContent='Connected';
   }catch(err){
     removeTypingIndicator();

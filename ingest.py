@@ -51,16 +51,25 @@ KNOWLEDGE_MAPS = {
     "chem": {
         "collection": "chem_grade10_kicd",
         "strands": {
-            "1": "Inorganic Chemistry",
-            "2": "Physical Chemistry"
+            "1": "Chemistry and Society",
+            "2": "Classification of Substances",
+            "3": "Atomic Structure",
+            "4": "Chemical Bonding",
+            "5": "Physical Chemistry"
         },
         "keywords": {
-            "branches of chemistry": "1.1", "laboratory": "1.1", "apparatus": "1.1",
-            "atom": "1.2", "isotope": "1.2", "energy level": "1.2", "orbital": "1.2",
-            "periodic table": "1.3", "group": "1.3", "period": "1.3", "valency": "1.3",
-            "chemical bond": "1.4", "ionic": "1.4", "covalent": "1.4", "metallic": "1.4",
-            "gas laws": "2.1", "boyle": "2.1", "charles": "2.1", "diffusion": "2.1",
-            "mole concept": "2.2", "molar mass": "2.2", "avogadro": "2.2", "stoichiometry": "2.2"
+            "introduction to chemistry": "1.1", "branches of chemistry": "1.1", "laboratory": "1.1", "apparatus": "1.1", "careers": "1.1",
+            "role of chemistry": "1.2", "environment": "1.2", "society": "1.2",
+            "separating mixtures": "2.1", "filtration": "2.1", "distillation": "2.1", "evaporation": "2.1",
+            "acids": "2.2", "bases": "2.2", "indicators": "2.2", "ph": "2.2", "neutralization": "2.2",
+            "atom": "3.1", "proton": "3.1", "neutron": "3.1", "electron": "3.1",
+            "isotope": "3.2", "energy level": "3.2", "orbital": "3.2", "electron configuration": "3.2",
+            "periodic table": "3.3", "group": "3.3", "period": "3.3", "valency": "3.3",
+            "ionic bonding": "4.1", "electrovalent": "4.1", "ionic": "4.1",
+            "covalent bonding": "4.2", "covalent": "4.2", "molecular": "4.2",
+            "metallic bonding": "4.3", "metallic": "4.3", "metals": "4.3",
+            "gas laws": "5.1", "boyle": "5.1", "charles": "5.1", "diffusion": "5.1",
+            "mole concept": "5.2", "molar mass": "5.2", "avogadro": "5.2", "stoichiometry": "5.2"
         }
     },
     "bio": {
