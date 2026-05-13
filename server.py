@@ -13,16 +13,23 @@ import re
 from typing import Optional
 
 from fastapi import FastAPI, Request
+from fastapi.background import BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from pydantic import BaseModel
 from twilio.request_validator import RequestValidator
+from twilio.rest import Client
 from twilio.twiml.messaging_response import MessagingResponse
 
 from pipeline import ask, ask_stream
 
 # Twilio signs the exact webhook URL; behind Railway use the public URL.
 _WHATSAPP_MAX_LEN = 3900  # under Twilio/WhatsApp limits; single bubble
+
+# Twilio outbound credentials (for background replies)
+_TWILIO_ACCOUNT_SID  = os.getenv("TWILIO_ACCOUNT_SID", "").strip()
+_TWILIO_AUTH_TOKEN   = os.getenv("TWILIO_AUTH_TOKEN", "").strip()
+_TWILIO_WHATSAPP_FROM = os.getenv("TWILIO_WHATSAPP_FROM", "").strip()  # e.g. whatsapp:+14155238886
 
 
 def _twilio_webhook_full_url(request: Request) -> str:
@@ -58,7 +65,7 @@ def _parse_whatsapp_body(body: str) -> tuple[str, str, str]:
     for prefix, subj in prefixes:
         if lower.startswith(prefix):
             subject = subj
-            text = text[len(prefix) :].strip()
+            text = text[len(prefix):].strip()
             break
     return text, subject, mode
 
@@ -72,10 +79,41 @@ def _strip_for_whatsapp(s: str) -> str:
     return s.strip()
 
 
-def _twiml_message(text: str) -> Response:
+def _twiml_empty() -> Response:
+    """Instant empty TwiML — returned to Twilio immediately to avoid timeout."""
     resp = MessagingResponse()
-    resp.message(text[:_WHATSAPP_MAX_LEN])
     return Response(content=str(resp), media_type="application/xml")
+
+
+def _send_whatsapp_outbound(to: str, body: str) -> None:
+    """Send the real answer back to the student via Twilio REST API (background)."""
+    if not (_TWILIO_ACCOUNT_SID and _TWILIO_AUTH_TOKEN and _TWILIO_WHATSAPP_FROM):
+        print("ERROR: Missing TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN / TWILIO_WHATSAPP_FROM env vars.")
+        return
+    try:
+        client = Client(_TWILIO_ACCOUNT_SID, _TWILIO_AUTH_TOKEN)
+        client.messages.create(
+            from_=_TWILIO_WHATSAPP_FROM,
+            to=to,
+            body=body[:_WHATSAPP_MAX_LEN],
+        )
+    except Exception as e:
+        print(f"ERROR sending outbound WhatsApp to {to}: {e}")
+
+
+def _process_and_reply(to: str, query: str, subject: str, mode: str) -> None:
+    """
+    Runs in a background thread AFTER we've already returned 200 to Twilio.
+    Calls the RAG pipeline and sends the answer via outbound Twilio API.
+    """
+    try:
+        result = ask(query, mode, subject)
+        answer = result.get("answer") or "No answer returned."
+    except Exception as e:
+        answer = f"Sorry, something went wrong on my end. Please try again! ({e})"
+
+    plain = _strip_for_whatsapp(answer)
+    _send_whatsapp_outbound(to, plain)
 
 
 app = FastAPI(title="ElimuAI — Grade 10 Study Assistant", version="2.0.0")
@@ -116,17 +154,32 @@ def whatsapp_probe():
 
 
 @app.post("/whatsapp")
-async def twilio_whatsapp_inbound(request: Request):
+async def twilio_whatsapp_inbound(request: Request, background_tasks: BackgroundTasks):
     """
     Twilio WhatsApp Sandbox → form-urlencoded POST.
-    Set PUBLIC_WEBHOOK_BASE=https://your-host.railway.app if signature validation fails behind proxy.
+
+    Strategy: return an EMPTY TwiML response to Twilio immediately (< 1 s),
+    then process the RAG pipeline in a background task and send the real
+    answer back via the Twilio REST API (outbound message).
+    This prevents Twilio's 15-second timeout from killing the request.
+
+    Required env vars:
+        TWILIO_ACCOUNT_SID    — from Twilio Console (starts with AC…)
+        TWILIO_AUTH_TOKEN     — from Twilio Console
+        TWILIO_WHATSAPP_FROM  — e.g. whatsapp:+14155238886 (Sandbox number)
+
+    Optional:
+        PUBLIC_WEBHOOK_BASE        — e.g. https://your-host.railway.app
+        TWILIO_SKIP_SIGNATURE      — true/1/yes to skip sig check (debug only)
+        WHATSAPP_DEFAULT_SUBJECT   — cs | chem | bio | pretech (default: cs)
     """
     form = await request.form()
     params: dict[str, str] = {}
     for key, value in form.multi_items():
         params[str(key)] = str(value)
 
-    token = os.getenv("TWILIO_AUTH_TOKEN", "").strip()
+    # ── Signature validation ──────────────────────────────────────────────
+    token = _TWILIO_AUTH_TOKEN
     signature = request.headers.get("X-Twilio-Signature", "") or ""
     url = _twilio_webhook_full_url(request)
     skip_sig = os.getenv("TWILIO_SKIP_SIGNATURE", "").lower() in ("1", "true", "yes")
@@ -138,25 +191,30 @@ async def twilio_whatsapp_inbound(request: Request):
         if not validator.validate(url, params, signature):
             return Response(status_code=403, content="Invalid Twilio signature")
 
+    # ── Parse message ─────────────────────────────────────────────────────
     body_text = params.get("Body", "").strip()
+    sender    = params.get("From", "").strip()   # e.g. whatsapp:+254700000000
+
     if not body_text:
-        return _twiml_message(
+        # Can't do background here — just reply inline (fast, no AI needed)
+        resp = MessagingResponse()
+        resp.message(
             "Send a question about the curriculum. "
-            "Optional prefix: cs: chem: bio: pretech: (example: pretech: What is oblique projection?)"
+            "Optional prefix: cs: chem: bio: pretech: "
+            "(example: pretech: What is oblique projection?)"
         )
+        return Response(content=str(resp), media_type="application/xml")
 
     query, subject, mode = _parse_whatsapp_body(body_text)
+
     if not query:
-        return _twiml_message("I did not catch a question after the subject prefix. Try again.")
+        resp = MessagingResponse()
+        resp.message("I didn't catch a question after the subject prefix. Please try again.")
+        return Response(content=str(resp), media_type="application/xml")
 
-    try:
-        result = ask(query, mode, subject)
-        answer = result.get("answer") or "No answer returned."
-    except Exception as e:
-        answer = f"Sorry, something went wrong. Please try again later. ({e})"
-
-    plain = _strip_for_whatsapp(answer)
-    return _twiml_message(plain)
+    # ── Schedule AI work in background, return instantly to Twilio ────────
+    background_tasks.add_task(_process_and_reply, sender, query, subject, mode)
+    return _twiml_empty()
 
 
 # ── Non-streaming (kept as fallback) ─────────────────────────────────────────
