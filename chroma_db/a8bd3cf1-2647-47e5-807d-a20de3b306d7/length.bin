@@ -1,0 +1,3 @@
+invalid type: string "Decode: The Control Unit translates the instruction into commands.\n\nExecute: The ALU performs the actual work.\n\nStore: The results are written back to memory or a register.\n\n2.6 Input and Output (I/O) Interface\nThe I/O interface manages communication between the CPU and external peripherals (Keyboard, Mouse, Printer).\n\npooling_layer else None
+
+        # Initialize we
