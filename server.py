@@ -1,18 +1,82 @@
 """
 server.py — FastAPI server with true SSE streaming from Gemini.
 Run: uvicorn server:app --host 0.0.0.0 --port $PORT
+
+WhatsApp (Twilio): POST /whatsapp — set Twilio Sandbox "When a message comes in" to
+https://<your-host>/whatsapp and configure TWILIO_AUTH_TOKEN (+ optional PUBLIC_WEBHOOK_BASE).
 """
 
 import json
 import asyncio
+import os
+import re
 from typing import Optional
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from pydantic import BaseModel
+from twilio.request_validator import RequestValidator
+from twilio.twiml.messaging_response import MessagingResponse
 
 from pipeline import ask, ask_stream
+
+# Twilio signs the exact webhook URL; behind Railway use the public URL.
+_WHATSAPP_MAX_LEN = 3900  # under Twilio/WhatsApp limits; single bubble
+
+
+def _twilio_webhook_full_url(request: Request) -> str:
+    public = os.getenv("PUBLIC_WEBHOOK_BASE", "").strip().rstrip("/")
+    if public:
+        return f"{public}/whatsapp"
+    proto = request.headers.get("x-forwarded-proto", request.url.scheme or "https")
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host")
+    if host:
+        return f"{proto}://{host}/whatsapp"
+    return str(request.url)
+
+
+def _parse_whatsapp_body(body: str) -> tuple[str, str, str]:
+    """Returns (query, subject, mode). Optional prefix: cs:, chem:, bio:, pretech:"""
+    text = (body or "").strip()
+    mode = "auto"
+    default_subj = os.getenv("WHATSAPP_DEFAULT_SUBJECT", "cs").strip().lower()
+    if default_subj not in ("cs", "chem", "bio", "pretech"):
+        default_subj = "cs"
+    subject = default_subj
+    lower = text.lower()
+    prefixes = (
+        ("pretech:", "pretech"),
+        ("pre-tech:", "pretech"),
+        ("chem:", "chem"),
+        ("chemistry:", "chem"),
+        ("bio:", "bio"),
+        ("biology:", "bio"),
+        ("cs:", "cs"),
+        ("computer:", "cs"),
+    )
+    for prefix, subj in prefixes:
+        if lower.startswith(prefix):
+            subject = subj
+            text = text[len(prefix) :].strip()
+            break
+    return text, subject, mode
+
+
+def _strip_for_whatsapp(s: str) -> str:
+    """Rough plain-text for chat; drop fenced code blocks and heavy markdown."""
+    s = re.sub(r"```[\s\S]*?```", "[diagram omitted — open elimuai.ke for visuals]", s)
+    s = re.sub(r"\*\*(.+?)\*\*", r"\1", s)
+    s = re.sub(r"\*(.+?)\*", r"\1", s)
+    s = re.sub(r"`([^`]+)`", r"\1", s)
+    return s.strip()
+
+
+def _twiml_message(text: str) -> Response:
+    resp = MessagingResponse()
+    resp.message(text[:_WHATSAPP_MAX_LEN])
+    return Response(content=str(resp), media_type="application/xml")
+
 
 app = FastAPI(title="ElimuAI — Grade 10 Study Assistant", version="2.0.0")
 
@@ -43,6 +107,56 @@ async def serve_ui():
 @app.get("/health")
 def health():
     return {"status": "healthy", "service": "ElimuAI"}
+
+
+@app.get("/whatsapp")
+def whatsapp_probe():
+    """Sanity check in browser; Twilio sends POST only."""
+    return {"status": "ok", "hint": "Twilio should POST here with form fields From, Body, …"}
+
+
+@app.post("/whatsapp")
+async def twilio_whatsapp_inbound(request: Request):
+    """
+    Twilio WhatsApp Sandbox → form-urlencoded POST.
+    Set PUBLIC_WEBHOOK_BASE=https://your-host.railway.app if signature validation fails behind proxy.
+    """
+    form = await request.form()
+    params: dict[str, str] = {}
+    for key, value in form.multi_items():
+        params[str(key)] = str(value)
+
+    token = os.getenv("TWILIO_AUTH_TOKEN", "").strip()
+    signature = request.headers.get("X-Twilio-Signature", "") or ""
+    url = _twilio_webhook_full_url(request)
+    skip_sig = os.getenv("TWILIO_SKIP_SIGNATURE", "").lower() in ("1", "true", "yes")
+
+    if token and not skip_sig:
+        if not signature:
+            return Response(status_code=403, content="Missing X-Twilio-Signature")
+        validator = RequestValidator(token)
+        if not validator.validate(url, params, signature):
+            return Response(status_code=403, content="Invalid Twilio signature")
+
+    body_text = params.get("Body", "").strip()
+    if not body_text:
+        return _twiml_message(
+            "Send a question about the curriculum. "
+            "Optional prefix: cs: chem: bio: pretech: (example: pretech: What is oblique projection?)"
+        )
+
+    query, subject, mode = _parse_whatsapp_body(body_text)
+    if not query:
+        return _twiml_message("I did not catch a question after the subject prefix. Try again.")
+
+    try:
+        result = ask(query, mode, subject)
+        answer = result.get("answer") or "No answer returned."
+    except Exception as e:
+        answer = f"Sorry, something went wrong. Please try again later. ({e})"
+
+    plain = _strip_for_whatsapp(answer)
+    return _twiml_message(plain)
 
 
 # ── Non-streaming (kept as fallback) ─────────────────────────────────────────

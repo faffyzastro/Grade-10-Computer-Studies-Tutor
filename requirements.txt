@@ -7,3 +7,4 @@ langchain-core
 sentence-transformers
 python-dotenv
 pydantic
+twilio
