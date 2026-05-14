@@ -24,7 +24,7 @@ from twilio.twiml.messaging_response import MessagingResponse
 from pipeline import ask, ask_stream
 
 # Twilio signs the exact webhook URL; behind Railway use the public URL.
-_WHATSAPP_MAX_LEN = 3900  # under Twilio/WhatsApp limits; single bubble
+_WHATSAPP_MAX_LEN = 1500  # safely under Twilio's 1600-char WhatsApp limit
 
 # Twilio outbound credentials (for background replies)
 _TWILIO_ACCOUNT_SID  = os.getenv("TWILIO_ACCOUNT_SID", "").strip()
@@ -46,7 +46,7 @@ def _twilio_webhook_full_url(request: Request) -> str:
 def _parse_whatsapp_body(body: str) -> tuple[str, str, str]:
     """Returns (query, subject, mode). Optional prefix: cs:, chem:, bio:, pretech:"""
     text = (body or "").strip()
-    mode = "auto"
+    mode = "whatsapp"
     default_subj = os.getenv("WHATSAPP_DEFAULT_SUBJECT", "cs").strip().lower()
     if default_subj not in ("cs", "chem", "bio", "pretech"):
         default_subj = "cs"
@@ -113,6 +113,8 @@ def _process_and_reply(to: str, query: str, subject: str, mode: str) -> None:
         answer = f"Sorry, something went wrong on my end. Please try again! ({e})"
 
     plain = _strip_for_whatsapp(answer)
+    if len(plain) > _WHATSAPP_MAX_LEN:
+        plain = plain[:_WHATSAPP_MAX_LEN - 80] + "\n\n[Answer trimmed. Visit elimuai.ke for the full response!]"
     _send_whatsapp_outbound(to, plain)
 
 

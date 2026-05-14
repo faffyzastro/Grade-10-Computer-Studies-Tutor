@@ -136,6 +136,18 @@ Provide:
 CONTEXT: {context}
 TOPIC: {question}
 TEACHER AID:""",
+
+    "whatsapp": """You are a concise {grade_level} {subject_label} tutor replying on WhatsApp in Kenya.
+Rules:
+- Maximum 250 words. Be direct and clear.
+- No markdown: no **, no *, no #, no bullet symbols, no code fences.
+- Use plain numbered lists (1. 2. 3.) if you need to list items.
+- Use simple everyday Kenyan examples (M-Pesa, matatus, farms) where helpful.
+- End with one short follow-up question to encourage the student.
+
+CONTEXT: {context}
+STUDENT QUESTION: {question}
+ANSWER:""",
 }
 
 # Shown to the model so the web UI can render diagrams (Mermaid / SVG).
@@ -247,10 +259,11 @@ def ask_stream(
         subject_label=subject_label,
         grade_level=grade_level,
     )
-    if subject == "pretech":
-        prompt_text = prompt_text.rstrip() + "\n\n" + VISUAL_OUTPUT_RULES_PRETECH
-    else:
-        prompt_text = prompt_text.rstrip() + "\n\n" + VISUAL_OUTPUT_RULES
+    if mode != "whatsapp":  # WhatsApp gets plain text — no diagram rules
+        if subject == "pretech":
+            prompt_text = prompt_text.rstrip() + "\n\n" + VISUAL_OUTPUT_RULES_PRETECH
+        else:
+            prompt_text = prompt_text.rstrip() + "\n\n" + VISUAL_OUTPUT_RULES
 
     # Step 4 — Stream tokens from Gemini with key rotation
     streamed_ok = False
